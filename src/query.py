@@ -23,9 +23,13 @@ Answer the question based on the above context: {question}
 """
 
 from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers import EnsembleRetriever
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.multi_query import MultiQueryRetriever
+try:
+    from langchain.retrievers.ensemble import EnsembleRetriever
+    from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
+    from langchain.retrievers.multi_query import MultiQueryRetriever
+except ImportError:
+    # Fallback for some versions or structure changes
+    from langchain.retrievers import EnsembleRetriever, ContextualCompressionRetriever, MultiQueryRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 import pickle
 
