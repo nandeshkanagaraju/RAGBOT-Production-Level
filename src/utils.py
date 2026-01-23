@@ -30,4 +30,7 @@ def get_embeddings():
             "Streamlit Cloud: Add it to App Settings > Secrets."
         )
     
+    # Strip whitespace to prevent header errors (UnicodeEncodeError)
+    api_key = api_key.strip()
+    
     return OpenAIEmbeddings(openai_api_key=api_key)
