@@ -1,6 +1,7 @@
 import sys
 import os
-# Workaround for OpenMP conflict on macOS
+
+# Set environment variable for OpenMP to avoid conflicts
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from langchain_community.vectorstores import FAISS
@@ -24,16 +25,21 @@ Answer the question based on the above context: {question}
 
 def query_rag(query_text):
     """
-    Queries the RAG system and returns the answer.
+    Query the RAG system and return the response.
+    
+    Args:
+        query_text (str): The user's question.
+    
+    Returns:
+        str: The LLM's response based on the retrieved context.
     """
-    # Prepare the DB.
     embeddings = get_embeddings()
     try:
         db = FAISS.load_local(FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
     except Exception as e:
-        return f"Error loading FAISS index: {e}\nDid you run `src/ingest.py` first?"
+        return f"Error loading FAISS index: {e}\nEnsure documents have been ingested."
     
-    # Search the DB.
+    # Retrieve top 5 similar documents
     results = db.similarity_search_with_score(query_text, k=5)
     
     if len(results) == 0:
@@ -51,7 +57,10 @@ def query_rag(query_text):
 
 def generate_suggestions():
     """
-    Generates 3 suggested questions based on the document context.
+    Generate suggested questions based on the available document context.
+    
+    Returns:
+        list: A list of 3 suggested questions.
     """
     embeddings = get_embeddings()
     try:
@@ -59,8 +68,7 @@ def generate_suggestions():
     except Exception:
         return []
 
-    # Get a few random/top chunks to inspire questions
-    # querying for "summary" or "main topics" usually gets diverse chunks
+    # Get diverse chunks to inspire questions
     results = db.similarity_search("main topics summary important facts", k=5)
     if not results:
         return []

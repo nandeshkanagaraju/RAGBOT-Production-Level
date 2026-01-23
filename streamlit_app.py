@@ -3,7 +3,7 @@ import os
 import shutil
 import sys
 
-# Ensure 'src' is in the path so we can import from it
+# Ensure src modules are importable
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from query import query_rag, generate_suggestions
