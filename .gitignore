@@ -1,18 +1,8 @@
-# Environment variables
 .env
-
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
 .venv/
 
-# Data and Indices (Too large/sensitive for git)
-data/
-chroma_db/
-faiss_index/
-chunks.pkl
-
-# macOS
 .DS_Store

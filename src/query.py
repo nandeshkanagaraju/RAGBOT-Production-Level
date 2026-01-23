@@ -22,87 +22,31 @@ If the context contains multiple related details, ensuring you explain the "how"
 Answer the question based on the above context: {question}
 """
 
-from langchain_community.retrievers import BM25Retriever
-try:
-    from langchain.retrievers.ensemble import EnsembleRetriever
-    from langchain.retrievers.contextual_compression import ContextualCompressionRetriever
-    from langchain.retrievers.multi_query import MultiQueryRetriever
-except ImportError:
-    # Fallback for some versions or structure changes
-    from langchain.retrievers import EnsembleRetriever, ContextualCompressionRetriever, MultiQueryRetriever
-from langchain.retrievers.document_compressors import LLMChainExtractor
-import pickle
-
 def query_rag(query_text):
     """
-    Queries the RAG system using Advanced techniques:
-    1. Hybrid Search (BM25 + FAISS)
-    2. Query Transformation (MultiQuery)
-    3. Re-ranking (Contextual Compression)
+    Queries the RAG system and returns the answer.
     """
+    # Prepare the DB.
     embeddings = get_embeddings()
-    llm = ChatOpenAI(temperature=0)
-    
-    # 1. Load FAISS (Vector)
     try:
-        vector_db = FAISS.load_local(FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
-        faiss_retriever = vector_db.as_retriever(search_kwargs={"k": 10})
+        db = FAISS.load_local(FAISS_PATH, embeddings, allow_dangerous_deserialization=True)
     except Exception as e:
         return f"Error loading FAISS index: {e}\nDid you run `src/ingest.py` first?"
-
-    # 2. Load BM25 (Keyword)
-    try:
-        with open("chunks.pkl", "rb") as f:
-            chunks = pickle.load(f)
-        bm25_retriever = BM25Retriever.from_documents(chunks)
-        bm25_retriever.k = 10
-    except Exception:
-        # Fallback to just FAISS if chunks.pkl missing
-        print("Warning: chunks.pkl not found. Hybrid search disabled.")
-        bm25_retriever = None
-
-    # 3. Hybrid Search (Ensemble)
-    if bm25_retriever:
-        ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, faiss_retriever],
-            weights=[0.4, 0.6] # Weigh vector slightly higher
-        )
-        base_retriever = ensemble_retriever
-    else:
-        base_retriever = faiss_retriever
-
-    # 4. Query Transformation (MultiQuery)
-    # Generates variants of the question to improve recall
-    multi_query_retriever = MultiQueryRetriever.from_llm(
-        retriever=base_retriever,
-        llm=llm
-    )
-
-    # 5. Re-ranking (Compression)
-    # Filters the retrieved docs to keep only relevant parts
-    compressor = LLMChainExtractor.from_llm(llm)
-    compression_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor,
-        base_retriever=multi_query_retriever
-    )
-
-    # Execute Chain
-    try:
-        results = compression_retriever.invoke(query_text)
-    except Exception as e:
-        # Fallback if compression fails (e.g. empty results)
-        print(f"Compression failed: {e}. Falling back to base retriever.")
-        results = base_retriever.invoke(query_text)
-
-    if not results:
+    
+    # Search the DB.
+    results = db.similarity_search_with_score(query_text, k=5)
+    
+    if len(results) == 0:
         return "No matching results found."
 
-    context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
+    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
     
     prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
     prompt = prompt_template.format(context=context_text, question=query_text)
 
-    response = llm.invoke(prompt)
+    model = ChatOpenAI()
+    response = model.invoke(prompt)
+    
     return response.content
 
 def generate_suggestions():

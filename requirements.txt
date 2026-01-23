@@ -1,4 +1,3 @@
-langchain
 langchain-core
 langchain-community
 langchain-openai
@@ -8,4 +7,3 @@ python-dotenv
 tiktoken
 streamlit
 pypdf
-rank_bm25

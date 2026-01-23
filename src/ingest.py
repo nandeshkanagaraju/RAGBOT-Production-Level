@@ -16,9 +16,23 @@ def load_documents():
     Loads documents from the data directory.
     Configured for .pdf files.
     """
-    loader = DirectoryLoader(DATA_PATH, glob="*.pdf", loader_cls=PyPDFLoader)
-    documents = loader.load()
-    return documents
+    documents = []
+    errors = []
+    
+    if not os.path.exists(DATA_PATH):
+        return [], []
+
+    for filename in os.listdir(DATA_PATH):
+        if filename.lower().endswith(".pdf"):
+            file_path = os.path.join(DATA_PATH, filename)
+            try:
+                loader = PyPDFLoader(file_path)
+                documents.extend(loader.load())
+            except Exception as e:
+                print(f"Error loading {filename}: {e}")
+                errors.append(f"{filename}: {e}")
+                
+    return documents, errors
 
 def split_text(documents):
     """
@@ -54,19 +68,23 @@ def ingest_documents():
         os.makedirs(DATA_PATH)
         return "Created data directory. Please upload files."
 
-    documents = load_documents()
-    if not documents:
+    documents, errors = load_documents()
+    if not documents and not errors:
         return "No documents found in data directory."
 
-    chunks = split_text(documents)
-    save_to_faiss(chunks)
-    
-    # Save chunks for BM25
-    with open("chunks.pkl", "wb") as f:
-        import pickle
-        pickle.dump(chunks, f)
+    status_msg = ""
+    if documents:
+        chunks = split_text(documents)
+        save_to_faiss(chunks)
+        status_msg += f"Successfully processed {len(documents)} documents into {len(chunks)} chunks."
+    else:
+        status_msg += "No valid documents processed."
+
+    if errors:
+        pdf_errors = "; ".join([e.split(":")[0] for e in errors]) # Just show filenames to keep it short
+        status_msg += f"\nSkipped {len(errors)} files due to errors: {pdf_errors}"
         
-    return f"Successfully processed {len(documents)} documents into {len(chunks)} chunks."
+    return status_msg
 
 def main():
     print(ingest_documents())
