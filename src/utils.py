@@ -18,6 +18,10 @@ def get_embeddings():
             import streamlit as st
             if "OPENAI_API_KEY" in st.secrets:
                 api_key = st.secrets["OPENAI_API_KEY"]
+                
+                # Strip whitespace to prevent header errors (UnicodeEncodeError)
+                api_key = api_key.strip()
+                
                 # Set it in env so other LangChain components (like ChatOpenAI) can find it
                 os.environ["OPENAI_API_KEY"] = api_key
         except (ImportError, FileNotFoundError):
@@ -30,7 +34,9 @@ def get_embeddings():
             "Streamlit Cloud: Add it to App Settings > Secrets."
         )
     
-    # Strip whitespace to prevent header errors (UnicodeEncodeError)
-    api_key = api_key.strip()
-    
+    # Ensure local env var is also clean if read from .env
+    if api_key != os.environ.get("OPENAI_API_KEY", ""):
+         api_key = api_key.strip()
+         os.environ["OPENAI_API_KEY"] = api_key
+
     return OpenAIEmbeddings(openai_api_key=api_key)
